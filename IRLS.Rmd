@@ -1,0 +1,355 @@
+---
+title: "IRLS"
+output: html_document
+date: "2025-11-15"
+---
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+set.seed(1)
+n  <- 100
+x1 <- rnorm(n)
+x2 <- rnorm(n)
+eta_true <- -0.5 + 1.2 * x1 - 0.8 * x2
+p_true   <- 1 / (1 + exp(-eta_true))
+y        <- rbinom(n, size = 1, prob = p_true)
+
+dat <- data.frame(y, x1, x2)
+
+# Design matrix X (includes intercept)
+X <- model.matrix(y ~ x1 + x2, data = dat)
+y <- dat$y
+
+```
+
+
+IRLS Algorithm
+```{r}
+# IRLS settings
+max_iter <- 25
+tol      <- 1e-6
+
+p <- ncol(X)                  # number of parameters
+beta <- rep(0, p)             # starting values
+
+# matrix to store beta at each iteration (row = iteration, col = parameter)
+# row 1 = initial values, rows 2.. = updated values
+paras <- matrix(NA_real_, nrow = max_iter + 1, ncol = p)
+colnames(paras) <- colnames(X)
+paras[1, ] <- beta
+
+for (k in 1:max_iter) {
+  # 1. Linear predictor
+  eta <- as.vector(X %*% beta)
+  
+  # 2. Mean under logistic link
+  mu <- 1 / (1 + exp(-eta))          # logistic
+  
+  # 3. Weights W = μ(1-μ)
+  W  <- mu * (1 - mu)                # vector length n
+  
+  # Guard against zero weights
+  W[W == 0] <- 1e-8
+  
+  # 4. Working response z = η + (y - μ)/W
+  z <- eta + (y - mu) / W
+  
+  # 5. Weighted least squares update: β_new = (X'WX)^{-1} X'Wz
+  WX <- X * W                        # each column j: W * X_j
+  XtWX <- t(X) %*% WX
+  XtWz <- t(X) %*% (W * z)
+  
+  beta_new <- solve(XtWX, XtWz)
+  
+  # store new beta
+  paras[k + 1, ] <- beta_new
+  
+  # check convergence
+  if (max(abs(beta_new - beta)) < tol) {
+    paras <- paras[1:(k + 1), , drop = FALSE]
+    cat("Converged in", k, "iterations\n")
+    break
+  }
+  
+  beta <- beta_new
+}
+
+paras
+
+```
+
+```{r}
+library(tidyverse)
+paras_df <- as.data.frame(paras) %>%
+  mutate(iter = row_number()-1) %>%
+  pivot_longer(cols = -iter, names_to = "parameter", values_to = "value")
+
+```
+```{r}
+anim <- ggplot(paras_df, aes(x = iter, y = value, color = parameter)) +
+  geom_line(size = 1.2) +
+  geom_point(size = 2) +
+  labs(
+    title = "IRLS Parameter Updates: Iteration {frame_along}",
+    x = "Iteration",
+    y = "Parameter Value"
+  ) +
+  transition_reveal(iter)
+
+animate(anim, width = 700, height = 450, renderer = gifski_renderer())
+
+```
+
+```{r}
+library(tidyverse)
+library(gganimate)
+library(gifski)
+
+set.seed(1)
+n <- 100
+x1 <- rnorm(n)
+x2 <- rnorm(n)
+eta_true <- -0.5 + 1.2*x1 - 0.8*x2
+p_true <- 1/(1+exp(-eta_true))
+y <- rbinom(n, 1, p_true)
+
+dat <- data.frame(y, x1, x2)
+X <- model.matrix(y ~ x1 + x2, data = dat)
+y <- dat$y
+
+max_iter <- 20
+beta <- rep(0, ncol(X))
+
+paras <- matrix(NA, nrow = max_iter+1, ncol = ncol(X))
+colnames(paras) <- colnames(X)
+paras[1,] <- beta
+
+for(k in 1:max_iter){
+  eta <- X %*% beta
+  mu  <- 1/(1+exp(-eta))
+  W   <- as.vector(mu*(1-mu))
+  W[W == 0] <- 1e-8
+  z <- eta + (y - mu)/W
+
+  XtWX <- t(X) %*% (X * W)
+  XtWz <- t(X) %*% (W * z)
+  beta_new <- solve(XtWX, XtWz)
+
+  paras[k+1,] <- beta_new
+  beta <- beta_new
+}
+
+paras_df <- as.data.frame(paras) %>%
+  mutate(iter = row_number() - 1) %>%
+  pivot_longer(cols = -iter, names_to = "parameter", values_to = "value")
+
+```
+
+```{r}
+iters <- 0:(nrow(paras) - 1)
+
+# Set up plotting window once
+xrange <- range(iters)
+yrange <- range(paras)
+
+for (k in 1:nrow(paras)) {
+  matplot(
+    x = iters[1:k],
+    y = paras[1:k, , drop = FALSE],
+    type = "l",
+    lty = 1,
+    xlab = "Iteration",
+    ylab = "Parameter value",
+    xlim = xrange,
+    ylim = yrange,
+    main = paste("IRLS Parameter Updates – up to iteration", iters[k])
+  )
+  legend("topright", legend = colnames(paras), col = 1:ncol(paras), lty = 1)
+  
+  Sys.sleep(0.3)  # pause so you can see the update (adjust speed)
+}
+
+```
+
+
+
+```{r}
+# paras: matrix of parameter estimates
+# rows   = iterations 0, 1, 2, ...
+# cols   = parameters (Intercept, x1, x2, ...)
+dim(paras)
+colnames(paras)
+
+```
+```{r}
+iters <- 0:(nrow(paras) - 1)
+
+```
+
+```{r}
+# set working directory where you want the images/GIF to go
+# setwd("path/to/some/folder")
+
+iters  <- 0:(nrow(paras) - 1)
+xrange <- range(iters)
+yrange <- range(paras)
+
+for (k in 1:nrow(paras)) {
+  # create file name: irls_01.png, irls_02.png, ...
+  png(sprintf("irls_%02d.png", k), width = 700, height = 450)
+  
+  matplot(
+    x = iters[1:k],
+    y = paras[1:k, , drop = FALSE],
+    type = "l",
+    lty  = 1,
+    lwd  = 2,
+    xlim = xrange,
+    ylim = yrange,
+    xlab = "Iteration",
+    ylab = "Parameter value",
+    main = paste("IRLS Parameter Updates – up to iteration", iters[k])
+  )
+  
+  legend("topright",
+         legend = colnames(paras),
+         col    = 1:ncol(paras),
+         lty    = 1,
+         lwd    = 2)
+  
+  dev.off()
+}
+
+```
+
+```{r}
+# On many systems the command is "convert"; on newer Windows it's "magick convert"
+system("magick convert -delay 20 -loop 0 irls_*.png irls.gif")
+# or if plain 'convert' works:
+# system("convert -delay 20 -loop 0 irls_*.png irls.gif")
+
+```
+
+```{r}
+getwd()
+```
+
+
+
+
+
+
+
+
+Binomial data
+Issue: influential outlier
+```{r}
+set.seed(123)
+
+### -----------------------------
+### Main cluster
+### -----------------------------
+n1 <- 200
+x1_main <- rnorm(n1, mean = 0, sd = 1)
+x2_main <- rnorm(n1, mean = 0, sd = 1)
+
+# True logistic model
+eta1 <- -1 + 2*x1_main + 1.5*x2_main
+p1   <- plogis(eta1)
+y1   <- rbinom(n1, size = 1, prob = p1)
+
+main <- data.frame(
+  x1 = x1_main,
+  x2 = x2_main,
+  y  = y1,
+  cluster = "main"
+)
+
+### -----------------------------
+### Influential cluster
+### -----------------------------
+n2 <- 40
+x1_inf <- rnorm(n2, mean = 5, sd = 0.6)   # far away in predictor space
+x2_inf <- rnorm(n2, mean = 5, sd = 0.6)
+
+# Contradict the pattern: make all y = 0
+y2 <- rep(0, n2)
+
+inf <- data.frame(
+  x1 = x1_inf,
+  x2 = x2_inf,
+  y  = y2,
+  cluster = "influential"
+)
+
+### Combine
+df <- rbind(main, inf)
+
+
+cols <- c("0" = "orange", "1" = "blue")
+
+plot(df$x1, df$x2,
+     col = cols[as.character(df$y)],
+     pch = ifelse(df$cluster == "main", 19, 17),
+     xlab = "x1",
+     ylab = "x2",
+     main = "Two-Predictor Binomial Data (Colored by y)")
+
+legend("topleft",
+       legend = c("y = 0", "y = 1", "main cluster", "influential cluster"),
+       col    = c("orange", "blue", "black", "black"),
+       pch    = c(19, 19, 19, 17),
+       bty = "n")
+
+
+fit_with  <- glm(y ~ x1 + x2, data = df, family = binomial)
+fit_main  <- glm(y ~ x1 + x2, data = subset(df, cluster=="main"), family = binomial)
+
+summary(fit_with)
+summary(fit_main)
+
+library(car)
+influencePlot(fit_with)
+
+## Fit logistic model
+fit <- glm(y ~ x1 + x2, data = df, family = binomial)
+
+## Create grid to evaluate predicted probabilities
+x1_seq <- seq(min(df$x1), max(df$x1), length = 100)
+x2_seq <- seq(min(df$x2), max(df$x2), length = 100)
+grid <- expand.grid(x1 = x1_seq, x2 = x2_seq)
+
+## Predict probabilities on grid
+grid$pred <- predict(fit, newdata = grid, type = "response")
+
+## ---- PLOT: Data + fitted probability contours ----
+
+cols <- c("0" = "orange", "1" = "blue")
+
+plot(df$x1, df$x2,
+     col = cols[as.character(df$y)],
+     pch = ifelse(df$cluster == "main", 19, 17),
+     xlab = "x1", ylab = "x2",
+     main = "Data with Fitted Logistic Model Contours")
+
+legend("topleft",
+       legend = c("y = 0", "y = 1", "main cluster", "influential cluster"),
+       col    = c("orange", "blue", "black", "black"),
+       pch    = c(19, 19, 19, 17),
+       bty = "n")
+
+## Add probability contour lines
+contour(x1_seq, x2_seq, matrix(grid$pred, 100, 100),
+        levels = c(0.1, 0.25, 0.5, 0.75, 0.9),
+        add = TRUE, drawlabels = TRUE, col = "darkgreen", lwd = 2)
+
+```
+```{r}
+
+```
+
+
+
