@@ -1,3 +1,4 @@
-devtools::document()
+export(run_shiny_app)
+import(shiny)
 
 
