@@ -1,18 +1,18 @@
 
-# IRLS
+# InteracDiagnosis
 
 <!-- badges: start -->
 <!-- badges: end -->
 
-The goal of IRLS is to ...
+A Shiny tool for visualising how adding or omitting covariates affects parameter estimates, focusing on changes in the coefficient of interest, along with theoretical and bootstrap standard errors, partial (added-variable) plots, and model-comparison statistics (AIC, BIC, and likelihood-ratio tests).
 
 ## Installation
 
-You can install the development version of IRLS from [GitHub](https://github.com/) with:
+You can install the development version of InteracDiagnosis from [GitHub](https://github.com/) with:
 
 ``` r
-# install.packages("pak")
-pak::pak("jianyuebai/Visualization-of-Iteratively-Reweighted-Least-Square")
+# install.packages("InteracDiagnosis")
+pak::pak("jianyuebai/InteracDiagnosis")
 ```
 
 ## Example
@@ -20,7 +20,7 @@ pak::pak("jianyuebai/Visualization-of-Iteratively-Reweighted-Least-Square")
 This is a basic example which shows you how to solve a common problem:
 
 ``` r
-library(IRLS)
+library(InteracDiagnosis)
 ## basic example code
 ```
 
