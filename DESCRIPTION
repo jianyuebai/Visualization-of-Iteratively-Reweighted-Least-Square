@@ -1,9 +1,9 @@
 Package: InteracDiagnosis
 Type: Package
-Title: ...
+Title: InteracDiagnosis
 Version: 0.0.1
-Authors@R: ...
-Description: ...
+Authors@R: Selenge & Jianyue
+Description: see README
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
